@@ -47,7 +47,9 @@ data_df <- tibble(line = 1:nrow(data), text = data$text)
 data_tidy <- data_df %>%
   unnest_tokens(word, text)
 
-## Sentiments
+
+# Create sentiment features -----------------------------------------------
+
 sentiments_bing <- data_tidy %>%
   inner_join(get_sentiments("bing")) %>%
   group_by(line) %>%
@@ -93,19 +95,73 @@ sentiments[is.na(sentiments)] <- 0
 
 sentiments
 
-## Split data
-train_df <- sentiments[1:nrow(train), ]
-train_df$sentiment <- train$sentiment
 
-train_index <- createDataPartition(train_df$sentiment, p = 0.8, list = F)
+# Create topic model ------------------------------------------------------
 
-test_df  <- train_df[-train_index, ]
-train_df <- train_df[ train_index, ]
+reviews_dtm <- data_tidy %>%
+  anti_join(stop_words) %>%
+  group_by(line) %>%
+  count(word) %>%
+  cast_dtm(document = line, 
+           term = word, 
+           value = n)
 
-## Model
+reviews_lda <- LDA(reviews_dtm, k = 5, control = list(seed = 2345))
+
+reviews_topics <- tidy(reviews_lda, matrix = "beta")
+
+## Document-topic probabilities
+reviews_documents <- tidy(reviews_lda, matrix = "gamma") %>%
+  mutate(document = as.numeric(document)) %>%
+  spread(topic, gamma)
+
+names(reviews_documents)[2:6] <- c("topic_service", 
+                                   "topic_experience",
+                                   "topic_time",
+                                   "topic_food",
+                                   "topic_restaurant")
+reviews_documents
+
+
+# Join all features -------------------------------------------------------
+
+data <- sentiments %>%
+  left_join(reviews_documents, by = c("line" = "document"))
+
+data[is.na(data)] <- 0
+
+
+# Partition data ----------------------------------------------------------
+
+set.seed(2345)
+
+train_index <- createDataPartition(train$sentiment, p = 0.8, list = F)
+
+x_train <- data[1:nrow(train), ][ train_index, -1]
+x_test  <- data[1:nrow(train), ][-train_index, -1]
+
+y_train <- train$sentiment[ train_index]
+y_test  <- train$sentiment[-train_index]
+
+dim(x_train)
+length(y_train)
+
+dim(x_test)
+length(y_test)
+
+# test_df  <- train_df[-train_index, ]
+# train_df <- train_df[ train_index, ]
+
+
+# Models ------------------------------------------------------------------
+
+## logistic model
 lm.fit <- glm(sentiment ~ sentiment_bing + sentiment_afinn + litigious + superfluous + uncertainty + anger + anticipation + disgust + fear + joy + sadness + surprise + trust + negative.y + negative.x + positive.y + positive.x,
-          data = train_df,
-          family = "binomial")
+              data = train_df,
+              family = "binomial")
+lm.fit <- glm.fit(x = x_train, 
+                  y = data.frame(y_train), 
+                  family = "binomial")
 
 summary(lm.fit)
 
@@ -127,14 +183,15 @@ rpart.pred <- ifelse(rpart.pred < 0.5, 0, 1)
 ## 78%
 table(rpart.pred, test_df$sentiment)
 
-formula <- as.formula("sentiment ~ sentiment_bing + sentiment_afinn + litigious + superfluous + uncertainty + anger + anticipation + disgust + fear + joy + sadness + surprise + trust + negative.y + negative.x + positive.y + positive.x")
+## Random Forest
+rf.fit <- randomForest(x = x_train,
+                       y = as.factor(y_train),
+                       ntree = 500)
+rf.pred <- predict(rf.fit, newdata = x_test)
 
-rf.fit <- randomForest(x = train_df[, c(2:18)],
-                       y = as.factor(train_df$sentiment),
-                       ntree = 1000)
-rf.pred <- predict(rf.fit, newdata = test_df)
+## 76%
+table(rf.pred, y_test)
 
-## 77%
-table(rf.pred, test_df$sentiment)
-
-rf.pred == test_df$sentiment
+## matches
+match <- rf.pred != test_df$sentiment
+train[test_df[match, ]$line, ]

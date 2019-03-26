@@ -24,6 +24,8 @@
 ## Libraries
 library(dplyr)
 library(tidytext)
+library(topicmodels)
+library(ggplot2)
 
 ## Load data
 train <- read.delim("data/train.txt", sep = "\t", header = F, quote = "", stringsAsFactors = F)
@@ -164,3 +166,44 @@ data_tidy %>%
   group_by(line) %>%
   count(word) %>%
   bind_tf_idf(word, line, n)
+
+## DTM
+reviews_dtm <- data_tidy %>%
+  anti_join(stop_words) %>%
+  group_by(line) %>%
+  count(word) %>%
+  cast_dtm(document = line, 
+           term = word, 
+           value = n)
+
+reviews_dtm
+
+reviews_lda <- LDA(reviews_dtm, k = 5, control = list(seed = 2345))
+reviews_lda
+
+reviews_topics <- tidy(reviews_lda, matrix = "beta")
+
+reviews_top_terms <- reviews_topics %>%
+  group_by(topic) %>%
+  top_n(10, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta)
+
+
+reviews_top_terms %>%
+  ggplot(aes(x = term, y = beta)) +
+  geom_col() +
+  facet_wrap(topic~., scales = "free") +
+  coord_flip()
+
+## Document-topic probabilities
+reviews_documents <- tidy(reviews_lda, matrix = "gamma") %>%
+  mutate(document = as.numeric(document)) %>%
+  spread(topic, gamma)
+
+names(reviews_documents)[2:6] <- c("topic_service", 
+                                   "topic_experience",
+                                   "topic_time",
+                                   "topic_food",
+                                   "topic_restaurant")
+reviews_documents
