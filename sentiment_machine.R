@@ -193,5 +193,7 @@ rf.pred <- predict(rf.fit, newdata = x_test)
 table(rf.pred, y_test)
 
 ## matches
-match <- rf.pred != test_df$sentiment
-train[test_df[match, ]$line, ]
+match <- rf.pred != y_test
+x_test[match, ]
+train[-train_index, -3][match, ] %>%
+  mutate(prediction = rf.pred[match])
