@@ -103,50 +103,64 @@ data_df %>%
   arrange(desc(n))
 
 ## Sentiments and target sentiment
-sentiments <- data_df %>%
-  unnest_tokens(word, text) %>%
+sentiments_bing <- data_tidy %>%
   inner_join(get_sentiments("bing")) %>%
   group_by(line) %>%
   count(sentiment) %>%
   spread(sentiment, n, fill = 0) %>%
-  mutate(sentiment = positive - negative)
+  mutate(sentiment_bing = positive - negative) %>%
+  select(-negative, -positive)
 
-sentiments <- train %>%
+sentiments_bing <- train %>%
   mutate(line = 1:nrow(train)) %>%
-  left_join(sentiments, by = c("line" = "line"))
+  left_join(sentiments_bing, by = c("line" = "line")) %>%
+  mutate(sentiment_bing = ifelse(is.na(sentiment_bing), 0, sentiment_bing))
 
 ## This shows there is a high correlation between calculated and actual sentiment.
 ## Therefore, this is an important feature to create for the ML model.
-table(sentiments$sentiment.y, sentiments$sentiment.x)
-cor(sentiments$sentiment.y, sentiments$sentiment.x, use = "complete.obs")
+table(sentiments_bing$sentiment, sentiments_bing$sentiment_bing)
+cor(sentiments_bing$sentiment, sentiments_bing$sentiment_bing, use = "complete.obs")
 
 ## Redo this exercise with another sentiment lexicon
 ## Pretty similar result, but with a larger spread of calculated sentiment
-sentiments <- data_df %>%
-  unnest_tokens(word, text) %>%
+sentiments_afinn <- data_tidy %>%
   inner_join(get_sentiments("afinn")) %>%
   group_by(line) %>%
-  summarise(sentiment = sum(score))
+  summarise(sentiment_afinn = sum(score))
 
-sentiments <- train %>%
+sentiments_afinn <- train %>%
   mutate(line = 1:nrow(train)) %>%
-  left_join(sentiments, by = c("line" = "line"))
+  left_join(sentiments_afinn, by = c("line" = "line")) %>%
+  mutate(sentiments_afinn = ifelse(is.na(sentiments_afinn), 0, sentiments_afinn))
 
-table(sentiments$sentiment.y, sentiments$sentiment.x)
-cor(sentiments$sentiment.y, sentiments$sentiment.x, use = "complete.obs")
+table(sentiments_afinn$sentiment, sentiments_afinn$sentiment_afinn)
+cor(sentiments_afinn$sentiment, sentiments_afinn$sentiment_afinn, use = "complete.obs")
 
 ## Other features could be other types of sentiments from the
 ## loughran and nrc lexicons
-data_df %>%
-  unnest_tokens(word, text) %>%
+sentiments_loughran <- data_tidy %>%
   inner_join(get_sentiments("loughran")) %>%
   group_by(line) %>%
   count(sentiment) %>%
   spread(sentiment, n, fill = 0)
 
-data_df %>%
-  unnest_tokens(word, text) %>%
+sentiments_nrc <- data_tidy %>%
   inner_join(get_sentiments("nrc")) %>%
   group_by(line) %>%
   count(sentiment) %>%
   spread(sentiment, n, fill = 0)
+
+## Parts of Speech tagging
+## Most reviews should be about "something".
+data_tidy %>%
+  inner_join(parts_of_speech) %>%
+  filter(pos == "Noun")
+
+
+## Term Frequency - Inverse Document Frequency
+## Calculate weights for each term, decreasing the weight for common words,
+## and increasing the weight for words not used often.
+data_tidy %>%
+  group_by(line) %>%
+  count(word) %>%
+  bind_tf_idf(word, line, n)
