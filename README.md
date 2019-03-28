@@ -4,6 +4,11 @@
 
 ## Methodology
 
+In Natural Language processing, as in many machine learning applications, 
+simple approaches can go a long way.
+
+The model adopted for this assessment is a simple *bag-of-words* model.
+
 ### Tagging reviews
 
 

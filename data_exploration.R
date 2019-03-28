@@ -56,6 +56,9 @@ data <- rbind(train[, c(1, 3)],
 data_df <- tibble(line = 1:nrow(data), text = data$text)
 
 ## tokenize words
+## Note: The unnest_tokens function also cleans the text before tokenizing, including:
+##       - Removing white space
+##       - Removing punctuation
 data_tidy <- data_df %>%
   unnest_tokens(word, text)
 

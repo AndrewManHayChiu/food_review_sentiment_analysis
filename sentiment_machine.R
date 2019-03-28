@@ -23,14 +23,17 @@
 
 ## Libraries
 library(dplyr)
+library(tidyr)
 library(tidytext)
+library(tm)
+library(topicmodels)
 library(caret)
 library(rpart)
 library(randomForest)
 
 ## Load data
-train <- read.delim("data/train.txt", sep = "\t", header = F, quote = "")
-test  <- read.delim("data/test.txt", sep = "\t", header = F, quote = "")
+train <- read.delim("data/train.txt", sep = "\t", header = F, quote = "", stringsAsFactors = F)
+test  <- read.delim("data/test.txt", sep = "\t", header = F, quote = "", stringsAsFactors = F)
 
 names(train) <- c("text", "sentiment")
 names(test)  <- c("text")
@@ -45,7 +48,9 @@ data_df <- tibble(line = 1:nrow(data), text = data$text)
 
 ## tokenize words
 data_tidy <- data_df %>%
-  unnest_tokens(word, text)
+  unnest_tokens(output = word, 
+                input = text,
+                token = "words")
 
 
 # Create sentiment features -----------------------------------------------
@@ -98,6 +103,7 @@ sentiments
 
 # Create topic model ------------------------------------------------------
 
+## Cast Document Term Matrix (DTM)
 reviews_dtm <- data_tidy %>%
   anti_join(stop_words) %>%
   group_by(line) %>%
@@ -123,10 +129,35 @@ names(reviews_documents)[2:6] <- c("topic_service",
 reviews_documents
 
 
+# Convert DTM to data frame --------------------------------------------
+
+## Remove sparse terms (words that don't appear often) 
+## to reduce dimensions
+reviews_dtm <- removeSparseTerms(reviews_dtm,
+                                 sparse = 0.995)
+
+## Convert to data frame
+reviews_df <- tidy(reviews_dtm) %>%
+  mutate(document = as.numeric(document)) %>%
+  spread(term, count, fill = 0)
+
+# reviews_df[1:5, 1:10]
+
+
+# DTM for bigrams ---------------------------------------------------------
+
+bigrams <- data_df %>%
+  unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
+  count(bigram) %>%
+  cast_dtm(document = line, 
+           term = word, 
+           value = n)
+
 # Join all features -------------------------------------------------------
 
 data <- sentiments %>%
-  left_join(reviews_documents, by = c("line" = "document"))
+  left_join(reviews_documents, by = c("line" = "document")) %>%
+  left_join(reviews_df, by = c("line" = "document"))
 
 data[is.na(data)] <- 0
 
