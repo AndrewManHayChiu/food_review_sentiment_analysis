@@ -24,6 +24,9 @@
 ## Libraries
 library(dplyr)
 library(tidytext)
+library(stringr)
+library(SnowballC)
+library(sentimentr)
 library(topicmodels)
 library(ggplot2)
 
@@ -56,7 +59,8 @@ data <- rbind(train[, c(1, 3)],
 data_df <- tibble(line = 1:nrow(data), text = data$text)
 
 ## tokenize words
-## Note: The unnest_tokens function also cleans the text before tokenizing, including:
+## Note: The unnest_tokens function also performs some cleaning of the text 
+##       before tokenizing, including:
 ##       - Removing white space
 ##       - Removing punctuation
 data_tidy <- data_df %>%
@@ -79,6 +83,39 @@ data_tidy %>%
   anti_join(stop_words) %>%  # Exclude stop words
   arrange(desc(n))
 
+## What are some of the least common words?
+## Uncommon words could potentially be modified, or point to spelling mistakes.
+## Most of the least common words have numbers; 
+## these should be removed prior to tokenizing.
+## However, some numbers are likely to be informative, 
+## as many "reviews" may incorporate a 5 or 10 star rating.
+## Hence, words greater than 10 should be removed.
+data_tidy %>%
+  count(word) %>%
+  anti_join(stop_words) %>%  # Exclude stop words
+  arrange(n)
+
+## After removing numbers, some words are different versions of the same word.
+## For example, absolute and absolutely.
+## Words should then be stemmed
+data_df %>%
+  unnest_tokens(word, text) %>%
+  filter(!str_detect(word, "[0-9]")) %>%
+  anti_join(stop_words) %>%
+  count(word) %>%
+  # arrange(n)
+  arrange(desc(n))
+
+## Stem words?
+## Not before getting sentiments
+data_df %>%
+  unnest_tokens(word, text) %>%
+  filter(!str_detect(word, "[0-9]")) %>%
+  anti_join(stop_words) %>%
+  mutate(word = wordStem(word)) %>%
+  count(word) %>%
+  arrange(desc(n))
+
 ## We can also glean that the reviews talk about certain aspects of food:
 ## 1. Food
 ## 2. Service
@@ -92,9 +129,10 @@ data_tidy %>%
 ## 3. Amazing
 ## 4. Delicious
 ## 
-## With this in mind, it would be constructive to tag each text with what the
+## With this in mind, it might help to tag each review with what the
 ## subject is about.
 ## Maybe make the default to be about food.
+## Note: Try to incorporate topics as a feature
 
 ## N-grams
 ## There aren't a huge amount of text, so N grams may not provide much help
@@ -154,6 +192,54 @@ sentiments_nrc <- data_tidy %>%
   group_by(line) %>%
   count(sentiment) %>%
   spread(sentiment, n, fill = 0)
+
+## negating sentiments; valence shifters
+sentiment_by("I am not very good", by = NULL)
+sentiment_by(data$text[1], by = NULL)
+sentiment_by(data$text[2], by = NULL)
+sentiment_by("not good")
+
+## takes a minute or two
+train_sentiments <- sapply(train$text, function(x) sentiment_by(x)$ave_sentiment)
+train_sentiments_binary <- ifelse(train_sentiments <= 0, 0, 1)
+table(train_sentiments_binary, train$sentiment) # This already gets 80% accuracy!
+## What sentences are they going wrong?
+## Most often, it's where the sentiment is close to 0.
+## Furthermore, it's different depending on whether the TRUE sentiment is 0 or 1.
+## Note: SENTIMENT should definitely be a feature.
+train %>%
+  mutate(sentiment_pred = train_sentiments, 
+         sentiment_binary = train_sentiments_binary) %>%
+  filter(sentiment != sentiment_binary) %>%
+  select(-source) %>%
+  head(15)
+  # summary()
+  ggplot(aes(x = sentiment_pred)) +
+  geom_histogram() +
+  facet_wrap(sentiment ~ .)
+
+train %>%
+  mutate(sentiment_pred = train_sentiments, 
+         sentiment_binary = train_sentiments_binary) %>%
+  ggplot(aes(x = sentiment_pred)) +
+  geom_histogram() +
+  facet_wrap(sentiment ~ .)
+
+## If the sentimentr got the sentiment wrong, what was the difference in word length?
+## If it was wrong, and sentiment was bad, the review is usually longer.
+## If it was wrong, and sentiment was good, the review is usually shorter
+## Note: WORD LENGTH SHOULD ALSO BE A FEATURE
+word_length <- train_sentiments <- sapply(train$text, function(x) sentiment_by(x)$word_count)
+train %>%
+  mutate(sentiment_pred = train_sentiments, 
+         sentiment_binary = train_sentiments_binary,
+         word_length = word_length) %>%
+  filter(sentiment_binary != sentiment) %>%
+  select(-source) %>%
+  # group_by(sentiment) %>%
+  ggplot(aes(x = word_length)) +
+  geom_histogram() +
+  facet_wrap(sentiment ~ .)
 
 ## Parts of Speech tagging
 ## Most reviews should be about "something".
