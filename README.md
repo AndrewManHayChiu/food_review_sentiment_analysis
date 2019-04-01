@@ -7,9 +7,21 @@
 In Natural Language processing, as in many machine learning applications, 
 simple approaches can go a long way.
 
-The model adopted for this assessment is a simple *bag-of-words* model.
+The approach adopted includes a bag of words representation of the text,
+where each word becomes a column, and an indicator of how many times the word
+exists in each review.
+
+Additional features are engineered to add to the bag of words, including:
+
+* Sentiments
+* Topics
+* Word length
 
 ### Tagging reviews
+
+### Dev-Test
+
+To replicate a production environment, Git is used to develop the application.
 
 
 ### Assumptions

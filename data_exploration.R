@@ -194,14 +194,22 @@ sentiments_nrc <- data_tidy %>%
   spread(sentiment, n, fill = 0)
 
 ## negating sentiments; valence shifters
-sentiment_by("I am not very good", by = NULL)
+sentiment_by("not good")
+sentiment_by(text.var = "I am not very good")
+sentiment_by(text.var = "I am not very good. But my partner is fantastic.")
+sentiment_by(text.var = c("I am not very good.", 
+                          "But my partner is fantastic."))
 sentiment_by(data$text[1], by = NULL)
 sentiment_by(data$text[2], by = NULL)
-sentiment_by("not good")
+
 
 ## takes a minute or two
-train_sentiments <- sapply(train$text, function(x) sentiment_by(x)$ave_sentiment)
-train_sentiments_binary <- ifelse(train_sentiments <= 0, 0, 1)
+# train_sentiments <- sapply(train$text, function(x) sentiment_by(x)$ave_sentiment)
+train_sentiments <- sapply(train$text, function(x) sentiment_by(x))
+train_sentiments <- t(as.data.frame(train_sentiments))
+train_sentiments <- data.frame(train_sentiments)
+train_sentiments_binary <- ifelse(train_sentiments$ave_sentiment <= 0, 0, 1)
+train_sentiments_binary <- as.numeric(train_sentiments_binary)
 table(train_sentiments_binary, train$sentiment) # This already gets 80% accuracy!
 ## What sentences are they going wrong?
 ## Most often, it's where the sentiment is close to 0.
@@ -212,7 +220,7 @@ train %>%
          sentiment_binary = train_sentiments_binary) %>%
   filter(sentiment != sentiment_binary) %>%
   select(-source) %>%
-  head(15)
+  # head(15)
   # summary()
   ggplot(aes(x = sentiment_pred)) +
   geom_histogram() +
@@ -229,9 +237,9 @@ train %>%
 ## If it was wrong, and sentiment was bad, the review is usually longer.
 ## If it was wrong, and sentiment was good, the review is usually shorter
 ## Note: WORD LENGTH SHOULD ALSO BE A FEATURE
-word_length <- train_sentiments <- sapply(train$text, function(x) sentiment_by(x)$word_count)
+word_length <- as.numeric(train_sentiments$word_count)
 train %>%
-  mutate(sentiment_pred = train_sentiments, 
+  mutate(sentiment_pred = train_sentiments$ave_sentiment, 
          sentiment_binary = train_sentiments_binary,
          word_length = word_length) %>%
   filter(sentiment_binary != sentiment) %>%

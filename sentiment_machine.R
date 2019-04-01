@@ -47,11 +47,16 @@ data <- rbind(train[, c(1, 3)],
 data_df <- tibble(line = 1:nrow(data), text = data$text)
 
 ## tokenize words
+# data_tidy <- data_df %>%
+#   unnest_tokens(output = word, 
+#                 input = text,
+#                 token = "words")
 data_tidy <- data_df %>%
   unnest_tokens(output = word, 
                 input = text,
                 token = "words")
-
+  filter(!str_detect(word, "[0-9]")) %>%
+  anti_join(stop_words)
 
 # Create sentiment features -----------------------------------------------
 
@@ -98,8 +103,16 @@ sentiments <- sentiments_bing %>%
 
 sentiments[is.na(sentiments)] <- 0
 
-sentiments
+# sentiments
 
+
+# Sentiments 2, word length -----------------------------------------------
+
+sentiments2 <- sapply(data$text, function(x) sentiment_by(x))
+sentiments2 <- t(as.data.frame(sentiments2))
+sentiments2 <- data.frame(sentiments2)
+word_length <- as.numeric(sentiments2$word_count)
+sentiments2 <- as.numeric(sentiments2$ave_sentiment)
 
 # Create topic model ------------------------------------------------------
 
@@ -126,7 +139,7 @@ names(reviews_documents)[2:6] <- c("topic_service",
                                    "topic_time",
                                    "topic_food",
                                    "topic_restaurant")
-reviews_documents
+# reviews_documents
 
 
 # Convert DTM to data frame --------------------------------------------
@@ -157,7 +170,10 @@ bigrams <- data_df %>%
 
 data <- sentiments %>%
   left_join(reviews_documents, by = c("line" = "document")) %>%
-  left_join(reviews_df, by = c("line" = "document"))
+  left_join(reviews_df, by = c("line" = "document")) %>%
+  mutate(sentiments2 = sentiments2,
+         # sentiments3 = 
+         word.length = word_length)
 
 data[is.na(data)] <- 0
 
@@ -220,11 +236,37 @@ rf.fit <- randomForest(x = x_train,
                        ntree = 500)
 rf.pred <- predict(rf.fit, newdata = x_test)
 
-## 76%
+## 79.6%
 table(rf.pred, y_test)
+sum(rf.pred == y_test) / length(y_test)
+
 
 ## matches
 match <- rf.pred != y_test
 x_test[match, ]
 train[-train_index, -3][match, ] %>%
   mutate(prediction = rf.pred[match])
+
+## XGB
+library(xgboost)
+
+dtrain <- sapply(x_train, as.numeric)
+dtrain <- data.matrix(dtrain)
+dtrain <- xgb.DMatrix(data = dtrain,
+                      label = y_train)
+
+dtest <- sapply(x_test, as.numeric)
+dtest <- data.matrix(dtest)
+
+xgb.fit <- xgboost(data = dtrain,
+                   # label = y_train,
+                   max.depth = 15,
+                   eta = 0.1, 
+                   nrounds = 100,
+                   objective = "binary:logistic")
+
+## 80.1%
+xgb.pred <- predict(xgb.fit, newdata = dtest)
+xgb.pred <- ifelse(xgb.pred <= 0.5, 0, 1)
+table(xgb.pred, y_test)
+sum(xgb.pred == y_test) / length(y_test)
