@@ -22,7 +22,6 @@ a *bag of words* model is adopted, with additional features including:
 * Word length
 * Average sentiment
 
-
 From this feature set, measures of similarity is calculated, 
 and the closest matching review is selected as the result.
 
@@ -48,6 +47,8 @@ An average sentiment is calculated by looking at the polarity of the food review
 
 This is derived in R using the *sentimentr* package.
 
+### Relevance Measure
+
 ## Dev-Test
 
 To replicate a product development environment, 
@@ -64,6 +65,4 @@ To run the app:
 3. Make sure the file is read as an executable (type "chmod +x app.R")
 4. Run the app by typing "Rscript app.R [text]"
     + Where [text] is a string surrounded by quotation marks
-
-### Relevance Measure
 
