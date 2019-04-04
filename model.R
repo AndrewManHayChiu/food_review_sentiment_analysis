@@ -24,6 +24,13 @@ test$source  <- "test"
 data <- rbind(train[, c(1, 3)],
               test[,  c(1, 2)])
 
+data_tidy <- data_df %>%
+  unnest_tokens(output = word, 
+                input = text,
+                token = "words")
+filter(!str_detect(word, "[0-9]")) %>%
+  anti_join(stop_words)
+
 data_df <- tibble(line = 1:nrow(data), text = data$text)
 
 
@@ -171,6 +178,8 @@ history <- model %>%
 ## Evaluate model
 results <- model %>% evaluate(as.matrix(x_test), y_test)
 results
+
+predict(model, as.matrix(x_test))
 
 # Save model --------------------------------------------------------------
 
