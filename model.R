@@ -34,11 +34,22 @@ data_df <- tibble(line = 1:nrow(data), text = data$text)
 
 # Train model -------------------------------------------------------------
 
+vocab_size = 10000
+
+## Initiate keras model
 model <- keras_model_sequential()
+
+## Define keras model
+model %>%
+  layer_embedding(input_dim = vocab_size, output_dim = 16) %>%
+  layer_global_average_pooling_1d() %>%
+  layer_dense(units = 16, activation = "relu") %>%
+  layer_dense(units = 1, activation = "sigmoid")
+
+model %>% summary()
 
 
 # Save model --------------------------------------------------------------
 
-
 model %>%
-  save_model_hdf5("model.h5")
+  save_model_hdf5("model/model.h5")
