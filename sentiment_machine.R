@@ -25,6 +25,7 @@
 library(dplyr)
 library(tidyr)
 library(tidytext)
+library(sentimentr)
 library(tm)
 library(topicmodels)
 library(caret)
@@ -159,12 +160,12 @@ reviews_df <- tidy(reviews_dtm) %>%
 
 # DTM for bigrams ---------------------------------------------------------
 
-bigrams <- data_df %>%
-  unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
-  count(bigram) %>%
-  cast_dtm(document = line, 
-           term = word, 
-           value = n)
+# bigrams <- data_df %>%
+#   unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
+#   count(bigram) %>%
+#   cast_dtm(document = line, 
+#            term = word, 
+#            value = n)
 
 # Join all features -------------------------------------------------------
 
@@ -190,11 +191,11 @@ x_test  <- data[1:nrow(train), ][-train_index, -1]
 y_train <- train$sentiment[ train_index]
 y_test  <- train$sentiment[-train_index]
 
-dim(x_train)
-length(y_train)
+# dim(x_train)
+# length(y_train)
 
-dim(x_test)
-length(y_test)
+# dim(x_test)
+# length(y_test)
 
 # test_df  <- train_df[-train_index, ]
 # train_df <- train_df[ train_index, ]
