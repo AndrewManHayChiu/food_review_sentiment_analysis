@@ -6,8 +6,7 @@ library(tidyr)
 library(tidytext)
 library(tm)
 library(topicmodels)
-
-library(tensorflow)
+library(sentimentr)
 library(keras)
 
 # Load data ---------------------------------------------------------------
