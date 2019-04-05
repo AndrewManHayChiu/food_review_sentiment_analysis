@@ -7,15 +7,18 @@
 ## This application takes in 1 (one) argument, text, from the command line
 ## and returns a predicted sentiment.
 
-require(sentimentr)
-require(dplyr)
-require(tidyr)
-require(tidytext)
-library(purrr)
+suppressMessages(require(sentimentr))
+suppressMessages(require(dplyr))
+suppressMessages(require(tidyr))
+suppressMessages(require(tidytext))
+suppressMessages(require(purrr))
 # require(keras)
 
+current_path <- rstudioapi::getActiveDocumentContext()$path
+setwd(dirname(current_path ))
+
 ## Load trained neural network
-load_model_hdf5("model/model.h5")
+load_model_hdf5("~model/model.h5")
 
 ## random input text
 # text <- as.character("The food was amazing!")
