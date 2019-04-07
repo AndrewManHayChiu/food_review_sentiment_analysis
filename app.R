@@ -12,7 +12,7 @@ require(dplyr)
 require(tidyr)
 require(tidytext)
 library(purrr)
-# require(keras)
+require(keras)
 
 ## Load trained neural network
 load_model_hdf5("model/model.h5")

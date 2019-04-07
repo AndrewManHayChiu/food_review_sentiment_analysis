@@ -57,8 +57,7 @@ data <- pad_sequences(
   list_data,
   maxlen = 35,
   padding = "post",
-  truncating = "post",
-  
+  truncating = "post"
 )
 
 data[1, ]
