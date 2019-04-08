@@ -17,6 +17,8 @@ suppressMessages(require(tidyr))
 suppressMessages(require(tidytext))
 suppressMessages(require(stringr))
 suppressMessages(require(qdap))
+suppressMessages(require(randomForest))
+
 
 ## Load trained neural network
 rf_model <- readRDS("model/rf_model.rds")
@@ -24,7 +26,7 @@ rf_model <- readRDS("model/rf_model.rds")
 ## Load word_matrix
 word_matrix <- read.csv("word_matrix.csv", stringsAsFactors = F)
 
-text <- "The food was pretty average"  # for testing
+# text <- "The food was pretty average"  # for testing
 
 text <- data.frame(text = text)
 text$text <- as.character(text$text)
@@ -49,12 +51,14 @@ word_matrix$word.length <- word_length
 word_matrix[is.na(word_matrix)] <- 0
 
 ## Make prediction
-pred <- predict(rf_model, word_matrix)
+pred <- predict(object = rf_model, 
+                newdata = word_matrix, 
+                "prob")
 
-prediction <- ifelse(pred <= 0, 0, 1)
+prediction <- which.max(pred) - 1
+probability <- max(pred[1, ])
 
 ## Print results
 print(paste("The predicted sentiment of your review is:", prediction, sep = " "))
 
-print(paste("The probability of of this prediction is:", pred, sep = " "))
-
+print(paste("The probability of of this prediction is:", probability, sep = " "))
