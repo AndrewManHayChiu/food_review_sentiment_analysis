@@ -15,14 +15,16 @@ suppressMessages(require(sentimentr))
 suppressMessages(require(dplyr))
 suppressMessages(require(tidyr))
 suppressMessages(require(tidytext))
-suppressMessages(require(purrr))
-suppressMessages(require(keras))
+suppressMessages(require(stringr))
+suppressMessages(require(qdap))
 
 ## Load trained neural network
-model <- load_model_hdf5("model/model.h5")
+rf_model <- readRDS("model/rf_model.rds")
 
-## Load word_index
-word_index <- read.csv("word_index.csv", stringsAsFactors = F)
+## Load word_matrix
+word_matrix <- read.csv("word_matrix.csv", stringsAsFactors = F)
+
+text <- "The food was pretty average"  # for testing
 
 text <- data.frame(text = text)
 text$text <- as.character(text$text)
@@ -31,20 +33,23 @@ text_tidy <- text %>%
   unnest_tokens(output = word, 
                 input = text,
                 token = "words") %>%
-  left_join(word_index, by = ("word" = "word"))
+  count(word) %>%
+  spread(word, n)
 
-text_data <- split(text_tidy$index, 1)
-text_data <- unname(text_data)
+sentiment <- sapply(text$text, function(x) sentiment_by(x))
+sentiment <- t(as.data.frame(sentiment))
+sentiment <- data.frame(sentiment)
+word_length <- as.numeric(sentiment$word_count)
+sentiment <- as.numeric(sentiment$ave_sentiment)
 
-text_data <- pad_sequences(
-  text_data,
-  maxlen = 35,
-  padding = "post",
-  truncating = "post",
-)
+## Fill in word_matrix with new data
+word_matrix <- bind_rows(word_matrix, text_tidy)[, 1:ncol(word_matrix)]
+word_matrix$sentiment <- sentiment
+word_matrix$word.length <- word_length
+word_matrix[is.na(word_matrix)] <- 0
 
 ## Make prediction
-pred <- predict(model, text_data)
+pred <- predict(rf_model, word_matrix)
 
 prediction <- ifelse(pred <= 0, 0, 1)
 
